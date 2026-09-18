@@ -3,6 +3,7 @@ package com.example
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -135,6 +136,11 @@ fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
         )
     }
 
+    // Handle system back gesture
+    BackHandler(enabled = currentTab == ScreenTab.WORKOUT_DETAILS) {
+        viewModel.selectTab(ScreenTab.HOME)
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -207,7 +213,7 @@ fun FitTrackBottomBar(
                 modifier = Modifier.testTag("nav_tab_home")
             )
 
-            // Calendar / History
+            // Calendar
             NavigationBarItem(
                 selected = currentTab == ScreenTab.CALENDAR,
                 onClick = { onTabSelected(ScreenTab.CALENDAR) },
@@ -235,7 +241,7 @@ fun FitTrackBottomBar(
                 modifier = Modifier.testTag("nav_tab_calendar")
             )
 
-            // Reports
+            // Report
             NavigationBarItem(
                 selected = currentTab == ScreenTab.REPORT,
                 onClick = { onTabSelected(ScreenTab.REPORT) },
@@ -243,7 +249,7 @@ fun FitTrackBottomBar(
                 icon = {
                     Icon(
                         imageVector = if (currentTab == ScreenTab.REPORT) Icons.Filled.InsertChart else Icons.Outlined.InsertChart,
-                        contentDescription = "Reports"
+                        contentDescription = "Report"
                     )
                 },
                 label = {
