@@ -1,0 +1,6 @@
+{
+  "name": "FitTrack Daily",
+  "description": "Eat. Move. Track. Improve. A simple, realistic personal diet, exercise, reminder and progress tracking app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
