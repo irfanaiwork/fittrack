@@ -13,5 +13,6 @@ data class Exercise(
     val duration: String = "30 min",
     val notes: String = "",
     val reminderEnabled: Boolean = true,
-    val isWorkout: Boolean = true // true = strength workout, false = walk / rest
+    val isWorkout: Boolean = true, // true = strength workout, false = walk / rest
+    val metValue: Float = 6.0f // METs for calories burn calculation
 )

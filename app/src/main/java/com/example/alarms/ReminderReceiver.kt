@@ -49,7 +49,11 @@ class ReminderReceiver : BroadcastReceiver() {
                         return@launch
                     }
 
-                    // Show notification with sound, vibration, and actions
+                    val settings = db.settingsDao().getSettingsDirect()
+                    val soundName = settings?.alarmSound ?: "Continuous Phone Ring"
+                    val continuousRinging = settings?.alarmContinuousRinging ?: true
+
+                    // Show notification with sound, vibration, fullScreenIntent, and persistent ringing
                     NotificationHelper.showReminderNotification(
                         context = context,
                         notificationId = notificationId,
@@ -59,8 +63,22 @@ class ReminderReceiver : BroadcastReceiver() {
                         activityId = activityId,
                         activityType = activityType,
                         scheduledTime = scheduledTime,
-                        snoozeMinutes = snoozeMinutes
+                        snoozeMinutes = snoozeMinutes,
+                        soundName = soundName,
+                        continuousRinging = continuousRinging
                     )
+
+                    if (continuousRinging) {
+                        val prompt = com.example.ui.ReminderPrompt(
+                            activityId = activityId,
+                            activityType = activityType,
+                            title = title,
+                            subtitle = message,
+                            time = scheduledTime,
+                            snoozeMinutes = snoozeMinutes
+                        )
+                        AlarmRingtonePlayer.startRinging(context, soundName, prompt)
+                    }
 
                     // Reschedule regular occurrence for tomorrow / next week if not a snooze
                     if (!isSnooze) {
@@ -89,6 +107,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
 
             ACTION_COMPLETE -> {
+                AlarmRingtonePlayer.stopRinging()
                 NotificationHelper.cancelNotification(context, notificationId)
                 AlarmScheduler.cancelSnooze(context, activityId)
 
@@ -114,6 +133,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
 
             ACTION_DISMISS_NO -> {
+                AlarmRingtonePlayer.stopRinging()
                 NotificationHelper.cancelNotification(context, notificationId)
                 AlarmScheduler.cancelSnooze(context, activityId)
 
@@ -136,6 +156,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
 
             ACTION_SNOOZE -> {
+                AlarmRingtonePlayer.stopRinging()
                 NotificationHelper.cancelNotification(context, notificationId)
                 val channelId = intent.getStringExtra("CHANNEL_ID") ?: NotificationHelper.CHANNEL_GENERAL
                 val title = intent.getStringExtra("TITLE") ?: "FitTrack Reminder"
@@ -155,6 +176,7 @@ class ReminderReceiver : BroadcastReceiver() {
             }
 
             ACTION_STOP -> {
+                AlarmRingtonePlayer.stopRinging()
                 NotificationHelper.cancelNotification(context, notificationId)
                 AlarmScheduler.cancelSnooze(context, activityId)
             }

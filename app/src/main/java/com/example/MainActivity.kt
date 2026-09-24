@@ -32,16 +32,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.alarms.AlarmRingtonePlayer
 import com.example.ui.FitTrackViewModel
 import com.example.ui.ReminderPrompt
 import com.example.ui.ScreenTab
 import com.example.ui.calendar.CalendarScreen
+import com.example.ui.components.IncomingCallAlarmDialog
 import com.example.ui.components.OnboardingFlow
 import com.example.ui.components.ReminderDialog
+import com.example.ui.components.UpdateAvailableDialog
+import com.example.updates.GitHubUpdateChecker
 import com.example.ui.home.HomeScreen
 import com.example.ui.reports.ReportsScreen
 import com.example.ui.settings.SettingsScreen
@@ -103,9 +108,17 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
+    val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val currentTab by viewModel.currentTab.collectAsState()
     val activeReminderPrompt by viewModel.activeReminderPrompt.collectAsState()
+
+    val isAlarmRinging by AlarmRingtonePlayer.isRinging.collectAsState()
+    val ringingPrompt by AlarmRingtonePlayer.ringingPrompt.collectAsState()
+    val currentAlertPrompt = activeReminderPrompt ?: ringingPrompt
+    val continuousRinging = settings?.alarmContinuousRinging ?: true
+
+    val activeUpdatePrompt by viewModel.activeUpdatePrompt.collectAsState()
 
     // If onboarding is not completed, show the Onboarding flow
     if (settings != null && !settings!!.onboardingCompleted) {
@@ -117,21 +130,61 @@ fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
         return
     }
 
-    // Active Reminder Dialog (triggered when an activity is due or opened from notification)
-    activeReminderPrompt?.let { prompt ->
-        ReminderDialog(
-            prompt = prompt,
-            onYesDone = {
-                viewModel.markCompleted(prompt.activityId, prompt.activityType, prompt.time)
+    // Call / Alarm or Active Reminder Dialog
+    currentAlertPrompt?.let { prompt ->
+        if (isAlarmRinging || continuousRinging) {
+            IncomingCallAlarmDialog(
+                prompt = prompt,
+                soundName = settings?.alarmSound ?: "Continuous Phone Ring",
+                onAnswerDone = {
+                    viewModel.stopAlarmRinging()
+                    viewModel.markCompleted(prompt.activityId, prompt.activityType, prompt.time)
+                    viewModel.setReminderPrompt(null)
+                },
+                onSnooze = { minutes ->
+                    viewModel.stopAlarmRinging()
+                    viewModel.snoozeActivity(prompt, minutes)
+                    viewModel.setReminderPrompt(null)
+                },
+                onDeclineDismiss = {
+                    viewModel.stopAlarmRinging()
+                    viewModel.setReminderPrompt(null)
+                }
+            )
+        } else {
+            ReminderDialog(
+                prompt = prompt,
+                onYesDone = {
+                    viewModel.markCompleted(prompt.activityId, prompt.activityType, prompt.time)
+                },
+                onNo = { reason ->
+                    viewModel.markIncomplete(prompt.activityId, prompt.activityType, prompt.time, reason = reason)
+                },
+                onSnooze = { minutes ->
+                    viewModel.snoozeActivity(prompt, minutes)
+                },
+                onDismiss = {
+                    viewModel.setReminderPrompt(null)
+                }
+            )
+        }
+    }
+
+    // In-App Update Prompt Dialog (Triggered from GitHub release detection or manual check)
+    activeUpdatePrompt?.let { updateInfo ->
+        UpdateAvailableDialog(
+            updateInfo = updateInfo,
+            onDownloadUpdate = {
+                GitHubUpdateChecker.openUpdateLink(context, updateInfo)
             },
-            onNo = { reason ->
-                viewModel.markIncomplete(prompt.activityId, prompt.activityType, prompt.time, reason = reason)
-            },
-            onSnooze = { minutes ->
-                viewModel.snoozeActivity(prompt, minutes)
+            onViewOnGitHub = {
+                GitHubUpdateChecker.openReleasePage(context, updateInfo)
             },
             onDismiss = {
-                viewModel.setReminderPrompt(null)
+                viewModel.dismissUpdatePrompt(remindLater = false)
+            },
+            onRemindLater = {
+                viewModel.dismissUpdatePrompt(remindLater = true)
             }
         )
     }

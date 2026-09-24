@@ -54,6 +54,7 @@ fun EditMealDialog(
     var quantity by remember { mutableStateOf(initialMeal?.quantity ?: "") }
     var time24 by remember { mutableStateOf(initialMeal?.time ?: "08:00") }
     var displayRange by remember { mutableStateOf(initialMeal?.displayTimeRange ?: "") }
+    var caloriesText by remember { mutableStateOf((initialMeal?.calories ?: 350).toString()) }
     var reminderEnabled by remember { mutableStateOf(initialMeal?.reminderEnabled ?: true) }
     var mealEnabled by remember { mutableStateOf(initialMeal?.enabled ?: true) }
 
@@ -150,6 +151,17 @@ fun EditMealDialog(
                     shape = RoundedCornerShape(10.dp)
                 )
 
+                OutlinedTextField(
+                    value = caloriesText,
+                    onValueChange = { caloriesText = it },
+                    label = { Text("Estimated Calories (kcal)") },
+                    placeholder = { Text("e.g. 350") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
                 // Reminder switch
                 Row(
                     modifier = Modifier
@@ -184,11 +196,13 @@ fun EditMealDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    val cals = caloriesText.toIntOrNull() ?: 350
                     val updated = (initialMeal ?: Meal(
                         name = name,
                         food = food,
                         quantity = quantity,
-                        time = time24
+                        time = time24,
+                        calories = cals
                     )).copy(
                         name = name.trim().ifEmpty { "Meal" },
                         food = food.trim(),
@@ -196,7 +210,8 @@ fun EditMealDialog(
                         time = time24,
                         displayTimeRange = displayRange.trim(),
                         reminderEnabled = reminderEnabled,
-                        enabled = mealEnabled
+                        enabled = mealEnabled,
+                        calories = cals
                     )
                     onSave(updated)
                 },

@@ -80,6 +80,12 @@ object DateTimeUtils {
         }
     }
 
+    fun getTodayDayOfWeek(): Int = getCurrentDayOfWeek()
+
+    fun getCurrentTime24(): String {
+        return time24Format.format(Date())
+    }
+
     fun getDayOfWeekName(day: Int): String {
         return when (day) {
             1 -> "Monday"

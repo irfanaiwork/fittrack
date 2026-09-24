@@ -227,7 +227,8 @@ fun EditExerciseDialog(
                         duration = duration.trim(),
                         notes = notes.trim(),
                         isWorkout = isWorkout,
-                        reminderEnabled = reminderEnabled
+                        reminderEnabled = reminderEnabled,
+                        metValue = if (isWorkout) 6.0f else 3.8f
                     )
                     onSave(updated)
                 },

@@ -11,7 +11,11 @@ import com.example.data.entities.CustomReminder
 import com.example.data.entities.Exercise
 import com.example.data.entities.Meal
 import com.example.data.entities.WorkoutRoutineItem
+import com.example.updates.AppUpdateInfo
+import com.example.updates.GitHubUpdateChecker
+import com.example.updates.UpdateCheckState
 import com.example.utils.DateTimeUtils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -86,6 +90,23 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
     private val _activeReminderPrompt = MutableStateFlow<ReminderPrompt?>(null)
     val activeReminderPrompt: StateFlow<ReminderPrompt?> = _activeReminderPrompt.asStateFlow()
 
+    // App Updates state
+    private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
+    val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
+
+    private val _activeUpdatePrompt = MutableStateFlow<AppUpdateInfo?>(null)
+    val activeUpdatePrompt: StateFlow<AppUpdateInfo?> = _activeUpdatePrompt.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            delay(2500)
+            val currentSettings = settings.value
+            if (currentSettings == null || currentSettings.autoCheckUpdates) {
+                checkForUpdates(isAutoCheck = true)
+            }
+        }
+    }
+
     // Calendar state
     private val _calendarMonth = MutableStateFlow(Calendar.getInstance())
     val calendarMonth: StateFlow<Calendar> = _calendarMonth.asStateFlow()
@@ -107,6 +128,30 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
     // Selected date completions
     val selectedDateCompletions = repository.getCompletionsForDate(_selectedDate.value)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Calorie & Metabolic Accounting Summary (Dynamic)
+    val calorieSummary: StateFlow<com.example.utils.DailyCalorieSummary> = combine(
+        settings,
+        allMeals,
+        allExercises,
+        todayCompletions
+    ) { sets, meals, exercises, completions ->
+        val completedMealIds = completions.filter { it.activityType == "MEAL" && it.completed }.map { it.activityId }.toSet()
+        val completedExerciseIds = completions.filter { it.activityType == "EXERCISE" && it.completed }.map { it.activityId }.toSet()
+        val todayDow = DateTimeUtils.getTodayDayOfWeek()
+        val todayExercises = exercises.filter { it.dayOfWeek == todayDow }
+        com.example.utils.CalorieCalculator.computeDailySummary(
+            settings = sets,
+            meals = meals,
+            completedMealIds = completedMealIds,
+            exercises = todayExercises,
+            completedExerciseIds = completedExerciseIds
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        com.example.utils.CalorieCalculator.computeDailySummary(null, emptyList(), emptySet(), emptyList(), emptySet())
+    )
 
     fun selectTab(tab: ScreenTab) {
         _currentTab.value = tab
@@ -189,12 +234,7 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
 
     // Water intake
     fun incrementWater() {
-        viewModelScope.launch {
-            val current = settings.value ?: AppSettings()
-            val today = DateTimeUtils.getTodayIso()
-            val consumed = if (current.waterDate == today) current.waterConsumedGlasses + 1 else 1
-            repository.updateSettings(current.copy(waterConsumedGlasses = consumed, waterDate = today))
-        }
+        addWaterGlasses(1)
     }
 
     fun decrementWater() {
@@ -204,6 +244,86 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
             val consumed = if (current.waterDate == today && current.waterConsumedGlasses > 0) current.waterConsumedGlasses - 1 else 0
             repository.updateSettings(current.copy(waterConsumedGlasses = consumed, waterDate = today))
         }
+    }
+
+    fun addWaterGlasses(count: Int) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            val today = DateTimeUtils.getTodayIso()
+            val base = if (current.waterDate == today) current.waterConsumedGlasses else 0
+            val consumed = (base + count).coerceAtLeast(0)
+            repository.updateSettings(current.copy(waterConsumedGlasses = consumed, waterDate = today))
+        }
+    }
+
+    fun setExactWaterGlasses(glasses: Int) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            val today = DateTimeUtils.getTodayIso()
+            repository.updateSettings(current.copy(waterConsumedGlasses = glasses.coerceAtLeast(0), waterDate = today))
+        }
+    }
+
+    fun setWaterTargetGlasses(target: Int) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            repository.updateSettings(current.copy(waterTargetGlasses = target.coerceIn(1, 30)))
+        }
+    }
+
+    fun saveUserProfile(
+        weightKg: Float,
+        heightCm: Float,
+        age: Int,
+        gender: String,
+        activityLevel: String,
+        goal: String
+    ) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            repository.updateSettings(
+                current.copy(
+                    userWeightKg = weightKg,
+                    userHeightCm = heightCm,
+                    userAge = age,
+                    userGender = gender,
+                    userActivityLevel = activityLevel,
+                    userGoal = goal
+                )
+            )
+        }
+    }
+
+    fun setAlarmSound(soundName: String) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            repository.updateSettings(current.copy(alarmSound = soundName))
+        }
+    }
+
+    fun setAlarmContinuousRinging(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settings.value ?: AppSettings()
+            repository.updateSettings(current.copy(alarmContinuousRinging = enabled))
+        }
+    }
+
+    fun testTriggerCallAlarm() {
+        val sound = settings.value?.alarmSound ?: "Continuous Phone Ring"
+        val prompt = ReminderPrompt(
+            activityId = 9999L,
+            activityType = "EXERCISE",
+            title = "Daily Workout Call Alert",
+            subtitle = "30-minute workout • Scheduled for now",
+            time = DateTimeUtils.getCurrentTime24(),
+            snoozeMinutes = 5
+        )
+        setReminderPrompt(prompt)
+        com.example.alarms.AlarmRingtonePlayer.startRinging(getApplication(), sound, prompt)
+    }
+
+    fun stopAlarmRinging() {
+        com.example.alarms.AlarmRingtonePlayer.stopRinging()
     }
 
     // Meal operations
@@ -310,6 +430,65 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
     fun clearProgressHistory() {
         viewModelScope.launch {
             repository.clearHistory()
+        }
+    }
+
+    // App Update actions
+    fun checkForUpdates(isAutoCheck: Boolean = false) {
+        viewModelScope.launch {
+            _updateCheckState.value = UpdateCheckState.Checking
+            val currentSettings = settings.value
+            val owner = currentSettings?.githubOwner?.ifEmpty { "irfan-aiwork" } ?: "irfan-aiwork"
+            val repo = currentSettings?.githubRepo?.ifEmpty { "fit-track" } ?: "fit-track"
+
+            val result = GitHubUpdateChecker.checkLatestRelease(owner, repo)
+            result.onSuccess { info ->
+                if (info.isNewer) {
+                    _updateCheckState.value = UpdateCheckState.Available(info)
+                    // If it's an auto-check and user already dismissed this specific version, don't interrupt
+                    if (!isAutoCheck || currentSettings?.lastDismissedUpdateVersion != info.versionName) {
+                        _activeUpdatePrompt.value = info
+                    }
+                } else {
+                    _updateCheckState.value = UpdateCheckState.UpToDate(info.currentVersionName)
+                }
+            }.onFailure { error ->
+                _updateCheckState.value = UpdateCheckState.Error(
+                    error.message ?: "Failed to connect to GitHub. Check repository name or internet."
+                )
+            }
+        }
+    }
+
+    fun dismissUpdatePrompt(remindLater: Boolean = false) {
+        val currentPrompt = _activeUpdatePrompt.value
+        _activeUpdatePrompt.value = null
+        if (remindLater && currentPrompt != null) {
+            settings.value?.let { currentSettings ->
+                updateSettings(currentSettings.copy(lastDismissedUpdateVersion = currentPrompt.versionName))
+            }
+        }
+    }
+
+    fun showUpdateDialog(info: AppUpdateInfo) {
+        _activeUpdatePrompt.value = info
+    }
+
+    fun simulateTestUpdate() {
+        val mockInfo = GitHubUpdateChecker.createMockUpdateInfo()
+        _updateCheckState.value = UpdateCheckState.Available(mockInfo)
+        _activeUpdatePrompt.value = mockInfo
+    }
+
+    fun saveGitHubRepoConfig(owner: String, repo: String, autoCheck: Boolean) {
+        settings.value?.let { currentSettings ->
+            updateSettings(
+                currentSettings.copy(
+                    githubOwner = owner.trim(),
+                    githubRepo = repo.trim(),
+                    autoCheckUpdates = autoCheck
+                )
+            )
         }
     }
 }

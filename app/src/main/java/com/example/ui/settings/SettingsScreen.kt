@@ -4,8 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,8 +33,23 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material3.CircularProgressIndicator
+import com.example.BuildConfig
+import com.example.alarms.AlarmRingtonePlayer
+import com.example.ui.components.GitHubUpdateGuideDialog
+import com.example.ui.components.UserProfileDialog
+import com.example.updates.UpdateCheckState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,6 +126,17 @@ fun SettingsScreen(
     var snoozeDropdownExpanded by remember { mutableStateOf(false) }
     val snoozeOptions = listOf(5 to "5 minutes", 10 to "10 minutes", 15 to "15 minutes")
 
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var ringtoneDropdownExpanded by remember { mutableStateOf(false) }
+    var isPreviewPlaying by remember { mutableStateOf(false) }
+
+    // GitHub Updates state
+    val updateState by viewModel.updateCheckState.collectAsState()
+    var showGitHubGuideDialog by remember { mutableStateOf(false) }
+    var showRepoConfigDialog by remember { mutableStateOf(false) }
+    var githubOwnerInput by remember(settings?.githubOwner) { mutableStateOf(settings?.githubOwner ?: "irfan-aiwork") }
+    var githubRepoInput by remember(settings?.githubRepo) { mutableStateOf(settings?.githubRepo ?: "fit-track") }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -130,6 +158,74 @@ fun SettingsScreen(
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        // Section 0: User Body Profile & Calorie Calculation
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("user_profile_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = GreenPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Body Profile & Calories", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+
+                        TextButton(onClick = { showProfileDialog = true }) {
+                            Text("Edit")
+                        }
+                    }
+
+                    val hasProfile = (settings?.userWeightKg ?: 0f) > 0f
+                    if (hasProfile) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Weight: ${settings?.userWeightKg} kg", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text("Height: ${settings?.userHeightCm} cm", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column {
+                                Text("Age: ${settings?.userAge} yrs • ${settings?.userGender}", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text("Goal: ${settings?.userGoal}", fontSize = 13.sp, color = GreenDark, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Set your weight, height, age, and gender to enable personalized daily calorie intake & burn tracking.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = { showProfileDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Set Up Body Profile")
+                        }
+                    }
+                }
             }
         }
 
@@ -524,6 +620,137 @@ fun SettingsScreen(
                         )
                     }
 
+                    // Continuous Call / Alarm Mode Switch
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Call / Alarm Mode", fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = GreenContainer
+                                ) {
+                                    Text(
+                                        text = "Non-Stop Ringing",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GreenDark,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Plays continuously like an incoming phone call or loud alarm until answered or completed",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = settings?.alarmContinuousRinging ?: true,
+                            onCheckedChange = { isEnabled ->
+                                viewModel.setAlarmContinuousRinging(isEnabled)
+                            }
+                        )
+                    }
+
+                    // Ringtone Selection Dropdown & Preview
+                    val selectedRingtone = settings?.alarmSound ?: "Continuous Phone Ring"
+                    ExposedDropdownMenuBox(
+                        expanded = ringtoneDropdownExpanded,
+                        onExpandedChange = { ringtoneDropdownExpanded = !ringtoneDropdownExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedRingtone,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Alarm & Call Ringtone") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = ringtoneDropdownExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = ringtoneDropdownExpanded,
+                            onDismissRequest = { ringtoneDropdownExpanded = false }
+                        ) {
+                            for (sound in AlarmRingtonePlayer.AVAILABLE_RINGTONES) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(sound)
+                                            if (sound == selectedRingtone) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = GreenPrimary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.setAlarmSound(sound)
+                                        ringtoneDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Audio Ringtone Preview & Test Controls
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                if (isPreviewPlaying) {
+                                    AlarmRingtonePlayer.stopPreview()
+                                    isPreviewPlaying = false
+                                } else {
+                                    AlarmRingtonePlayer.playPreview(context, selectedRingtone)
+                                    isPreviewPlaying = true
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPreviewPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isPreviewPlaying) "Stop Ring" else "Preview Sound", fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (isPreviewPlaying) {
+                                    AlarmRingtonePlayer.stopPreview()
+                                    isPreviewPlaying = false
+                                }
+                                viewModel.testTriggerCallAlarm()
+                            },
+                            modifier = Modifier.weight(1.2f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Test Call Alarm", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
                     // Default Snooze Duration
                     ExposedDropdownMenuBox(
                         expanded = snoozeDropdownExpanded,
@@ -627,7 +854,267 @@ fun SettingsScreen(
             }
         }
 
-        // Section 6: About App & Irfan Gulzar Footer
+        // Section: App Version & GitHub Updates
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("app_updates_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(GreenContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = GreenDark,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column {
+                                Text("App Version & Updates", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("FitTrack v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        IconButton(onClick = { showGitHubGuideDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = "How GitHub updates work",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    // Status display
+                    when (val currentStatus = updateState) {
+                        is UpdateCheckState.Checking -> {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = GreenPrimary
+                                    )
+                                    Text("Checking GitHub for new releases...", fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        is UpdateCheckState.Available -> {
+                            val info = currentStatus.updateInfo
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = GreenContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Update Available: v${info.versionName} 🚀",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = GreenDark
+                                        )
+                                        Text(
+                                            info.releaseTitle,
+                                            fontSize = 11.sp,
+                                            color = GreenDark.copy(alpha = 0.8f),
+                                            maxLines = 1
+                                        )
+                                    }
+                                    Button(
+                                        onClick = { viewModel.showUpdateDialog(info) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text("Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                        is UpdateCheckState.UpToDate -> {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = GreenContainer.copy(alpha = 0.4f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = GreenPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        "You're on the latest version (v${BuildConfig.VERSION_NAME})",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = GreenDark
+                                    )
+                                }
+                            }
+                        }
+                        is UpdateCheckState.Error -> {
+                            val errorMsg = currentStatus.errorMessage
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = errorMsg,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                            }
+                        }
+                        is UpdateCheckState.Idle -> {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Connected GitHub: ${settings?.githubOwner ?: "irfan-aiwork"}/${settings?.githubRepo ?: "fit-track"}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Primary Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.checkForUpdates(isAutoCheck = false) },
+                            modifier = Modifier.weight(1.3f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                            enabled = updateState !is UpdateCheckState.Checking
+                        ) {
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Check Updates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.simulateTestUpdate() },
+                            modifier = Modifier.weight(1.1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Test Dialog", fontSize = 12.sp)
+                        }
+                    }
+
+                    // GitHub Repo Configuration summary & edit button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Repository Source", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("github.com/${settings?.githubOwner ?: "irfan-aiwork"}/${settings?.githubRepo ?: "fit-track"}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        TextButton(onClick = { showRepoConfigDialog = true }) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Change", fontSize = 12.sp)
+                        }
+                    }
+
+                    // Auto check toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Auto-check for updates", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text("Automatically check for new GitHub releases on launch", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = settings?.autoCheckUpdates ?: true,
+                            onCheckedChange = { checked ->
+                                settings?.let { s ->
+                                    viewModel.updateSettings(s.copy(autoCheckUpdates = checked))
+                                }
+                            }
+                        )
+                    }
+
+                    // Help & Instructions Link
+                    TextButton(
+                        onClick = { showGitHubGuideDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Default.HelpOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("How to publish updates on GitHub (Guide)", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // Section 7: About App & Irfan Gulzar Footer
         item {
             AppCreditFooter()
         }
@@ -792,6 +1279,97 @@ fun SettingsScreen(
                 showAddCustomDialog = false
                 editingCustomReminder = null
             }
+        )
+    }
+
+    // User Profile Dialog
+    if (showProfileDialog) {
+        UserProfileDialog(
+            currentSettings = settings,
+            onSaveProfile = { weight, height, age, gender, activityLevel, goal ->
+                viewModel.saveUserProfile(weight, height, age, gender, activityLevel, goal)
+                showProfileDialog = false
+            },
+            onDismiss = { showProfileDialog = false }
+        )
+    }
+
+    // GitHub Repository Configuration Dialog
+    if (showRepoConfigDialog) {
+        AlertDialog(
+            onDismissRequest = { showRepoConfigDialog = false },
+            shape = RoundedCornerShape(18.dp),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(imageVector = Icons.Default.Code, contentDescription = null, tint = GreenPrimary)
+                    Text("GitHub Repository Source", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Set the GitHub owner and repository where you publish releases so app users receive updates directly from your repo.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = githubOwnerInput,
+                        onValueChange = { githubOwnerInput = it },
+                        label = { Text("GitHub Owner / Username") },
+                        placeholder = { Text("e.g. irfan-aiwork") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = githubRepoInput,
+                        onValueChange = { githubRepoInput = it },
+                        label = { Text("Repository Name") },
+                        placeholder = { Text("e.g. fit-track") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    Text(
+                        "Releases Endpoint:\napi.github.com/repos/${githubOwnerInput.trim().ifEmpty { "owner" }}/${githubRepoInput.trim().ifEmpty { "repo" }}/releases/latest",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleanOwner = githubOwnerInput.trim().ifEmpty { "irfan-aiwork" }
+                        val cleanRepo = githubRepoInput.trim().ifEmpty { "fit-track" }
+                        viewModel.saveGitHubRepoConfig(
+                            owner = cleanOwner,
+                            repo = cleanRepo,
+                            autoCheck = settings?.autoCheckUpdates ?: true
+                        )
+                        showRepoConfigDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Save Repository")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRepoConfigDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // GitHub Update Guide Dialog
+    if (showGitHubGuideDialog) {
+        GitHubUpdateGuideDialog(
+            onDismiss = { showGitHubGuideDialog = false }
         )
     }
 }

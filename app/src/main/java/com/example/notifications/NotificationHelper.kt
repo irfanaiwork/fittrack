@@ -72,7 +72,9 @@ object NotificationHelper {
         activityId: Long,
         activityType: String,
         scheduledTime: String,
-        snoozeMinutes: Int = 5
+        snoozeMinutes: Int = 5,
+        soundName: String = "Continuous Phone Ring",
+        continuousRinging: Boolean = true
     ) {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -82,6 +84,7 @@ object NotificationHelper {
             putExtra("REMINDER_TITLE", title)
             putExtra("REMINDER_MESSAGE", message)
             putExtra("REMINDER_TIME", scheduledTime)
+            putExtra("IS_CALL_ALARM", true)
         }
         val tapPendingIntent = PendingIntent.getActivity(
             context,
@@ -139,26 +142,37 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val soundUri = if (soundName.contains("Phone", ignoreCase = true)) {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+        } else {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        } ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("🔔 $title")
+            .setContentTitle("📞 $title")
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$message\n\nDid you complete this activity?"))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$message\n\nIncoming FitTrack Call Alert! Tap to answer or mark complete."))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(if (continuousRinging) NotificationCompat.CATEGORY_CALL else NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setOngoing(continuousRinging)
             .setSound(soundUri)
-            .setVibrate(longArrayOf(0, 350, 200, 350))
+            .setFullScreenIntent(tapPendingIntent, true)
             .setContentIntent(tapPendingIntent)
-            .addAction(0, "✓ YES, DONE", yesPendingIntent)
-            .addAction(0, "✕ NO", noPendingIntent)
+            .setVibrate(longArrayOf(0, 1000, 600, 1000, 600))
+            .addAction(0, "✓ ANSWER / DONE", yesPendingIntent)
+            .addAction(0, "✕ DECLINE", noPendingIntent)
             .addAction(0, "🔁 SNOOZE ${snoozeMinutes}M", snoozePendingIntent)
 
         try {
-            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+            val notification = builder.build()
+            if (continuousRinging) {
+                // Insistent flag repeats sound continuously until touched
+                notification.flags = notification.flags or android.app.Notification.FLAG_INSISTENT
+            }
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
         } catch (e: SecurityException) {
             // Notification permission might not be granted
         }

@@ -21,7 +21,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 AM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 1
+            orderIndex = 1,
+            calories = 360
         ),
         Meal(
             id = 2,
@@ -32,7 +33,8 @@ object DefaultData {
             displayTimeRange = "1:00–2:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 2
+            orderIndex = 2,
+            calories = 460
         ),
         Meal(
             id = 3,
@@ -43,7 +45,8 @@ object DefaultData {
             displayTimeRange = "5:00–6:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 3
+            orderIndex = 3,
+            calories = 160
         ),
         Meal(
             id = 4,
@@ -54,7 +57,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 4
+            orderIndex = 4,
+            calories = 420
         )
     )
 
@@ -68,7 +72,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 AM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 1
+            orderIndex = 1,
+            calories = 480
         ),
         Meal(
             id = 2,
@@ -79,7 +84,8 @@ object DefaultData {
             displayTimeRange = "1:00–2:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 2
+            orderIndex = 2,
+            calories = 560
         ),
         Meal(
             id = 3,
@@ -90,7 +96,8 @@ object DefaultData {
             displayTimeRange = "5:00–6:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 3
+            orderIndex = 3,
+            calories = 220
         ),
         Meal(
             id = 4,
@@ -101,7 +108,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 4
+            orderIndex = 4,
+            calories = 480
         )
     )
 
@@ -115,7 +123,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 AM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 1
+            orderIndex = 1,
+            calories = 520
         ),
         Meal(
             id = 2,
@@ -126,7 +135,8 @@ object DefaultData {
             displayTimeRange = "1:00–2:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 2
+            orderIndex = 2,
+            calories = 620
         ),
         Meal(
             id = 3,
@@ -137,7 +147,8 @@ object DefaultData {
             displayTimeRange = "5:00–6:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 3
+            orderIndex = 3,
+            calories = 280
         ),
         Meal(
             id = 4,
@@ -148,7 +159,8 @@ object DefaultData {
             displayTimeRange = "8:00–9:00 PM",
             enabled = true,
             reminderEnabled = true,
-            orderIndex = 4
+            orderIndex = 4,
+            calories = 540
         )
     )
 
@@ -169,7 +181,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Warm-up, Squats, Push-ups, Lunges, Rows, Glute Bridges, Plank",
             reminderEnabled = true,
-            isWorkout = true
+            isWorkout = true,
+            metValue = 6.0f
         ),
         Exercise(
             id = 2,
@@ -179,7 +192,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Strength & endurance bodyweight workout",
             reminderEnabled = true,
-            isWorkout = true
+            isWorkout = true,
+            metValue = 6.0f
         ),
         Exercise(
             id = 3,
@@ -189,7 +203,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Brisk outdoor or treadmill walk",
             reminderEnabled = true,
-            isWorkout = false
+            isWorkout = false,
+            metValue = 3.8f
         ),
         Exercise(
             id = 4,
@@ -199,7 +214,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Full body bodyweight routine",
             reminderEnabled = true,
-            isWorkout = true
+            isWorkout = true,
+            metValue = 6.0f
         ),
         Exercise(
             id = 5,
@@ -209,7 +225,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Relaxing evening walk",
             reminderEnabled = true,
-            isWorkout = false
+            isWorkout = false,
+            metValue = 3.8f
         ),
         Exercise(
             id = 6,
@@ -219,7 +236,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Morning strength & core workout",
             reminderEnabled = true,
-            isWorkout = true
+            isWorkout = true,
+            metValue = 6.0f
         ),
         Exercise(
             id = 7,
@@ -229,7 +247,8 @@ object DefaultData {
             duration = "30 min",
             notes = "Active recovery walk or light stretch",
             reminderEnabled = true,
-            isWorkout = false
+            isWorkout = false,
+            metValue = 3.8f
         )
     )
 
@@ -303,11 +322,19 @@ object DefaultData {
         id = 1,
         notificationEnabled = true,
         defaultSnoozeMinutes = 5,
-        alarmSound = "Default",
+        alarmSound = "Continuous Phone Ring",
         onboardingCompleted = false,
         waterTargetGlasses = 8,
         waterConsumedGlasses = 0,
         waterDate = "",
-        selectedPlan = PLAN_LOW
+        selectedPlan = PLAN_LOW,
+        userWeightKg = 0f,
+        userHeightCm = 0f,
+        userAge = 0,
+        userGender = "",
+        userActivityLevel = "Moderate",
+        userGoal = "Maintain Weight",
+        dailyCalorieTarget = 2000,
+        alarmContinuousRinging = true
     )
 }

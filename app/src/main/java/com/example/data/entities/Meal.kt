@@ -14,5 +14,6 @@ data class Meal(
     val displayTimeRange: String = "", // "8:00–9:00 AM"
     val enabled: Boolean = true,
     val reminderEnabled: Boolean = true,
-    val orderIndex: Int = 0
+    val orderIndex: Int = 0,
+    val calories: Int = 350
 )

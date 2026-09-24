@@ -31,6 +31,10 @@ import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.example.updates.UpdateCheckState
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -65,11 +69,14 @@ import com.example.ui.components.AppCreditFooter
 import com.example.ui.components.EditCustomReminderDialog
 import com.example.ui.components.EditExerciseDialog
 import com.example.ui.components.EditMealDialog
+import com.example.ui.components.UserProfileDialog
+import com.example.ui.components.WaterGoalDialog
 import com.example.ui.theme.GreenContainer
 import com.example.ui.theme.GreenDark
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.StatusError
 import com.example.ui.theme.StatusSuccess
+import com.example.utils.CalorieCalculator
 import com.example.utils.DateTimeUtils
 
 @Composable
@@ -82,6 +89,8 @@ fun HomeScreen(
     val customReminders by viewModel.customReminders.collectAsState()
     val todayCompletions by viewModel.todayCompletions.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val calorieSummary by viewModel.calorieSummary.collectAsState()
+    val updateState by viewModel.updateCheckState.collectAsState()
 
     val todayIso = remember { DateTimeUtils.getTodayIso() }
     val todayDayOfWeek = remember { DateTimeUtils.getCurrentDayOfWeek() }
@@ -96,6 +105,8 @@ fun HomeScreen(
     var editingCustomReminder by remember { mutableStateOf<CustomReminder?>(null) }
     var showAddCustomDialog by remember { mutableStateOf(false) }
     var showAddMenuDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var showWaterGoalDialog by remember { mutableStateOf(false) }
 
     // Filter enabled meals
     val enabledMeals = meals.filter { it.enabled }
@@ -143,6 +154,73 @@ fun HomeScreen(
                         fontWeight = FontWeight.Normal,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            // In-App GitHub Update Notification Banner
+            if (updateState is UpdateCheckState.Available) {
+                val updateInfo = (updateState as UpdateCheckState.Available).updateInfo
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.showUpdateDialog(updateInfo) }
+                            .testTag("home_update_banner"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SystemUpdate,
+                                        contentDescription = null,
+                                        tint = androidx.compose.ui.graphics.Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Update Available: v${updateInfo.versionName} 🚀",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = "Tap to view changelog & update app",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { viewModel.showUpdateDialog(updateInfo) },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text("Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -203,71 +281,24 @@ fun HomeScreen(
                 }
             }
 
-            // Water Intake Card
+            // Calorie & Workout Burn Accounting Card
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocalDrink,
-                                    contentDescription = "Water",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Water", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text(
-                                    "Drink water according to thirst",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                CalorieBurnTrackerCard(
+                    summary = calorieSummary,
+                    onOpenProfile = { showProfileDialog = true }
+                )
+            }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            IconButton(
-                                onClick = { viewModel.decrementWater() },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Text("-", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Text(
-                                text = "$waterConsumed / $waterTarget",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            IconButton(
-                                onClick = { viewModel.incrementWater() },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Text("+", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
+            // Daily Water Intake Tracker Card
+            item {
+                DailyWaterTrackerCard(
+                    consumedGlasses = waterConsumed,
+                    targetGlasses = waterTarget,
+                    onAddGlass = { viewModel.addWaterGlasses(it) },
+                    onRemoveGlass = { viewModel.decrementWater() },
+                    onSetExactGlasses = { viewModel.setExactWaterGlasses(it) },
+                    onEditGoal = { showWaterGoalDialog = true }
+                )
             }
 
             // Section Header: Today's Schedule
@@ -317,7 +348,7 @@ fun HomeScreen(
 
                 ActivityItemCard(
                     title = meal.name,
-                    subtitle = "${meal.food} • ${meal.quantity}",
+                    subtitle = "${meal.food} • ${meal.quantity} • ${meal.calories} kcal",
                     timeDisplay = if (meal.displayTimeRange.isNotEmpty()) meal.displayTimeRange else DateTimeUtils.format12Hour(meal.time),
                     iconEmoji = when (meal.name.lowercase()) {
                         "breakfast" -> "🍳"
@@ -334,7 +365,7 @@ fun HomeScreen(
                             ReminderPrompt(
                                 activityId = meal.id,
                                 activityType = "MEAL",
-                                title = "${meal.name} Time",
+                                title = "${meal.name} Time (${meal.calories} kcal)",
                                 subtitle = "${meal.food} • ${meal.quantity}",
                                 time = meal.time
                             )
@@ -356,11 +387,15 @@ fun HomeScreen(
                 val completion = todayCompletions.find { it.activityId == exercise.id && it.activityType == "EXERCISE" }
                 val isCompleted = completion?.completed == true
                 val isMissed = completion?.completed == false
+                val burnCals = CalorieCalculator.calculateExerciseBurn(
+                    exercise,
+                    if (calorieSummary.isProfileSet) calorieSummary.userWeightKg else 70f
+                )
 
                 Column {
                     ActivityItemCard(
                         title = exercise.name,
-                        subtitle = "${exercise.duration} • ${exercise.notes.ifEmpty { "Scheduled exercise" }}",
+                        subtitle = "${exercise.duration} • ~${burnCals} kcal burn • ${exercise.notes.ifEmpty { "Scheduled exercise" }}",
                         timeDisplay = DateTimeUtils.format12Hour(exercise.time),
                         iconEmoji = if (exercise.isWorkout) "🏋️" else "🚶",
                         isCompleted = isCompleted,
@@ -371,7 +406,7 @@ fun HomeScreen(
                                 ReminderPrompt(
                                     activityId = exercise.id,
                                     activityType = "EXERCISE",
-                                    title = "Exercise: ${exercise.name}",
+                                    title = "${exercise.name} (Burn ~${burnCals} kcal)",
                                     subtitle = "${exercise.duration} • ${exercise.notes}",
                                     time = exercise.time
                                 )
@@ -599,6 +634,30 @@ fun HomeScreen(
                 showAddCustomDialog = false
                 editingCustomReminder = null
             }
+        )
+    }
+
+    // User Metabolic Profile Dialog (Weight, Height, Age, Gender, Goal)
+    if (showProfileDialog) {
+        UserProfileDialog(
+            currentSettings = settings,
+            onSaveProfile = { weight, height, age, gender, activityLevel, goal ->
+                viewModel.saveUserProfile(weight, height, age, gender, activityLevel, goal)
+                showProfileDialog = false
+            },
+            onDismiss = { showProfileDialog = false }
+        )
+    }
+
+    // Water Goal Dialog
+    if (showWaterGoalDialog) {
+        WaterGoalDialog(
+            currentTargetGlasses = waterTarget,
+            onSaveGoal = { target ->
+                viewModel.setWaterTargetGlasses(target)
+                showWaterGoalDialog = false
+            },
+            onDismiss = { showWaterGoalDialog = false }
         )
     }
 }
