@@ -177,9 +177,25 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun completeOnboarding() {
+        startTrackingToday(
+            alarmSound = settings.value?.alarmSound ?: "Continuous Phone Ring",
+            continuousRinging = settings.value?.alarmContinuousRinging ?: true
+        )
+    }
+
+    fun startTrackingToday(alarmSound: String, continuousRinging: Boolean) {
         viewModelScope.launch {
             val current = settings.value ?: AppSettings()
-            repository.updateSettings(current.copy(onboardingCompleted = true))
+            val today = DateTimeUtils.getTodayIso()
+            val updated = current.copy(
+                onboardingCompleted = true,
+                isTrackingStarted = true,
+                trackingStartDate = today,
+                alarmSound = alarmSound,
+                alarmContinuousRinging = continuousRinging
+            )
+            repository.updateSettings(updated)
+            AlarmScheduler.rescheduleAll(getApplication())
         }
     }
 

@@ -324,6 +324,8 @@ object DefaultData {
         defaultSnoozeMinutes = 5,
         alarmSound = "Continuous Phone Ring",
         onboardingCompleted = false,
+        isTrackingStarted = false,
+        trackingStartDate = "",
         waterTargetGlasses = 8,
         waterConsumedGlasses = 0,
         waterDate = "",

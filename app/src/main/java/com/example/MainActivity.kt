@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -48,6 +49,30 @@ import com.example.ui.components.ReminderDialog
 import com.example.ui.components.UpdateAvailableDialog
 import com.example.updates.GitHubUpdateChecker
 import com.example.ui.home.HomeScreen
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import com.example.ui.reports.ReportsScreen
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.theme.GreenDark
@@ -120,11 +145,14 @@ fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
 
     val activeUpdatePrompt by viewModel.activeUpdatePrompt.collectAsState()
 
-    // If onboarding is not completed, show the Onboarding flow
-    if (settings != null && !settings!!.onboardingCompleted) {
+    val isTrackingStarted = settings?.isTrackingStarted == true && settings?.onboardingCompleted == true
+
+    // If tracking is not yet started, show the interactive Onboarding & Start Today flow
+    if (settings != null && !isTrackingStarted) {
         OnboardingFlow(
-            onFinished = {
-                viewModel.completeOnboarding()
+            initialSettings = settings,
+            onStartToday = { soundName, continuousRinging ->
+                viewModel.startTrackingToday(soundName, continuousRinging)
             }
         )
         return
@@ -228,126 +256,155 @@ fun FitTrackBottomBar(
     currentTab: ScreenTab,
     onTabSelected: (ScreenTab) -> Unit
 ) {
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
         HorizontalDivider(
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
             thickness = 1.dp
         )
-        NavigationBar(
-            modifier = Modifier.testTag("fit_track_bottom_bar"),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(66.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .testTag("fit_track_bottom_bar"),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Home
-            NavigationBarItem(
-                selected = currentTab == ScreenTab.HOME,
-                onClick = { onTabSelected(ScreenTab.HOME) },
-                alwaysShowLabel = true,
-                icon = {
-                    Icon(
-                        imageVector = if (currentTab == ScreenTab.HOME) Icons.Filled.Home else Icons.Outlined.Home,
-                        contentDescription = "Home"
-                    )
-                },
-                label = {
-                    Text(
-                        "Home",
-                        fontSize = 12.sp,
-                        fontWeight = if (currentTab == ScreenTab.HOME) FontWeight.Bold else FontWeight.Medium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = GreenDark,
-                    selectedTextColor = GreenDark,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag("nav_tab_home")
+            FitTrackNavItem(
+                tab = ScreenTab.HOME,
+                currentTab = currentTab,
+                iconSelected = Icons.Filled.Home,
+                iconUnselected = Icons.Outlined.Home,
+                label = "Home",
+                testTag = "nav_tab_home",
+                onClick = { onTabSelected(ScreenTab.HOME) }
             )
-
-            // Calendar
-            NavigationBarItem(
-                selected = currentTab == ScreenTab.CALENDAR,
-                onClick = { onTabSelected(ScreenTab.CALENDAR) },
-                alwaysShowLabel = true,
-                icon = {
-                    Icon(
-                        imageVector = if (currentTab == ScreenTab.CALENDAR) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth,
-                        contentDescription = "Calendar"
-                    )
-                },
-                label = {
-                    Text(
-                        "Calendar",
-                        fontSize = 12.sp,
-                        fontWeight = if (currentTab == ScreenTab.CALENDAR) FontWeight.Bold else FontWeight.Medium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = GreenDark,
-                    selectedTextColor = GreenDark,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag("nav_tab_calendar")
+            FitTrackNavItem(
+                tab = ScreenTab.CALENDAR,
+                currentTab = currentTab,
+                iconSelected = Icons.Filled.CalendarMonth,
+                iconUnselected = Icons.Outlined.CalendarMonth,
+                label = "Calendar",
+                testTag = "nav_tab_calendar",
+                onClick = { onTabSelected(ScreenTab.CALENDAR) }
             )
-
-            // Report
-            NavigationBarItem(
-                selected = currentTab == ScreenTab.REPORT,
-                onClick = { onTabSelected(ScreenTab.REPORT) },
-                alwaysShowLabel = true,
-                icon = {
-                    Icon(
-                        imageVector = if (currentTab == ScreenTab.REPORT) Icons.Filled.InsertChart else Icons.Outlined.InsertChart,
-                        contentDescription = "Report"
-                    )
-                },
-                label = {
-                    Text(
-                        "Report",
-                        fontSize = 12.sp,
-                        fontWeight = if (currentTab == ScreenTab.REPORT) FontWeight.Bold else FontWeight.Medium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = GreenDark,
-                    selectedTextColor = GreenDark,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag("nav_tab_report")
+            FitTrackNavItem(
+                tab = ScreenTab.REPORT,
+                currentTab = currentTab,
+                iconSelected = Icons.Filled.InsertChart,
+                iconUnselected = Icons.Outlined.InsertChart,
+                label = "Report",
+                testTag = "nav_tab_report",
+                onClick = { onTabSelected(ScreenTab.REPORT) }
             )
+            FitTrackNavItem(
+                tab = ScreenTab.SETTINGS,
+                currentTab = currentTab,
+                iconSelected = Icons.Filled.Settings,
+                iconUnselected = Icons.Outlined.Settings,
+                label = "Settings",
+                testTag = "nav_tab_settings",
+                onClick = { onTabSelected(ScreenTab.SETTINGS) }
+            )
+        }
+    }
+}
 
-            // Settings
-            NavigationBarItem(
-                selected = currentTab == ScreenTab.SETTINGS,
-                onClick = { onTabSelected(ScreenTab.SETTINGS) },
-                alwaysShowLabel = true,
-                icon = {
-                    Icon(
-                        imageVector = if (currentTab == ScreenTab.SETTINGS) Icons.Filled.Settings else Icons.Outlined.Settings,
-                        contentDescription = "Settings"
-                    )
-                },
-                label = {
-                    Text(
-                        "Settings",
-                        fontSize = 12.sp,
-                        fontWeight = if (currentTab == ScreenTab.SETTINGS) FontWeight.Bold else FontWeight.Medium
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = GreenDark,
-                    selectedTextColor = GreenDark,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.testTag("nav_tab_settings")
+@Composable
+private fun RowScope.FitTrackNavItem(
+    tab: ScreenTab,
+    currentTab: ScreenTab,
+    iconSelected: ImageVector,
+    iconUnselected: ImageVector,
+    label: String,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    val isSelected = currentTab == tab
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    // Tactile animated scale on hover and selection
+    val scale by animateFloatAsState(
+        targetValue = when {
+            isHovered -> 1.08f
+            isSelected -> 1.02f
+            else -> 1.0f
+        },
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "nav_item_scale"
+    )
+
+    // Pill background color
+    val pillBackground by animateColorAsState(
+        targetValue = when {
+            isSelected -> GreenContainer
+            isHovered -> GreenContainer.copy(alpha = 0.55f)
+            else -> Color.Transparent
+        },
+        label = "nav_pill_bg"
+    )
+
+    // Content color: high-contrast green for selected/hovered, theme variant for normal
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isSelected || isHovered -> GreenDark
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "nav_content_color"
+    )
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .testTag(testTag)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, color = GreenPrimary),
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .graphicsLayer(scaleX = scale, scaleY = scale)
+                .padding(vertical = 2.dp)
+        ) {
+            // Icon Pill Container
+            Box(
+                modifier = Modifier
+                    .width(52.dp)
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(pillBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isSelected) iconSelected else iconUnselected,
+                    contentDescription = label,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // Label Text: ALWAYS EXPLICITLY DRAWN with full visibility and high contrast
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected || isHovered) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1
             )
         }
     }

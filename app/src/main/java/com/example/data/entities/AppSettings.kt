@@ -11,6 +11,8 @@ data class AppSettings(
     val defaultSnoozeMinutes: Int = 5,
     val alarmSound: String = "Continuous Phone Ring",
     val onboardingCompleted: Boolean = false,
+    val isTrackingStarted: Boolean = false,
+    val trackingStartDate: String = "",
     val waterTargetGlasses: Int = 8,
     val waterConsumedGlasses: Int = 0,
     val waterDate: String = "",

@@ -184,7 +184,7 @@ object AlarmScheduler {
         CoroutineScope(Dispatchers.IO).launch {
             val db = AppDatabase.getInstance(context)
             val settings = db.settingsDao().getSettingsDirect()
-            if (settings?.notificationEnabled == false) return@launch
+            if (settings?.notificationEnabled == false || settings?.isTrackingStarted == false) return@launch
 
             val meals = db.mealDao().getMealsForAlarms()
             meals.forEach { scheduleMealReminder(context, it) }
