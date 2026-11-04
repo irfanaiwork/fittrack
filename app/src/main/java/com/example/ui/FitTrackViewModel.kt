@@ -11,9 +11,6 @@ import com.example.data.entities.CustomReminder
 import com.example.data.entities.Exercise
 import com.example.data.entities.Meal
 import com.example.data.entities.WorkoutRoutineItem
-import com.example.updates.AppUpdateInfo
-import com.example.updates.GitHubUpdateChecker
-import com.example.updates.UpdateCheckState
 import com.example.utils.DateTimeUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,23 +86,6 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
 
     private val _activeReminderPrompt = MutableStateFlow<ReminderPrompt?>(null)
     val activeReminderPrompt: StateFlow<ReminderPrompt?> = _activeReminderPrompt.asStateFlow()
-
-    // App Updates state
-    private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
-    val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
-
-    private val _activeUpdatePrompt = MutableStateFlow<AppUpdateInfo?>(null)
-    val activeUpdatePrompt: StateFlow<AppUpdateInfo?> = _activeUpdatePrompt.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            delay(2500)
-            val currentSettings = settings.value
-            if (currentSettings == null || currentSettings.autoCheckUpdates) {
-                checkForUpdates(isAutoCheck = true)
-            }
-        }
-    }
 
     // Calendar state
     private val _calendarMonth = MutableStateFlow(Calendar.getInstance())
@@ -446,65 +426,6 @@ class FitTrackViewModel(application: Application) : AndroidViewModel(application
     fun clearProgressHistory() {
         viewModelScope.launch {
             repository.clearHistory()
-        }
-    }
-
-    // App Update actions
-    fun checkForUpdates(isAutoCheck: Boolean = false) {
-        viewModelScope.launch {
-            _updateCheckState.value = UpdateCheckState.Checking
-            val currentSettings = settings.value
-            val owner = currentSettings?.githubOwner?.ifEmpty { "irfan-aiwork" } ?: "irfan-aiwork"
-            val repo = currentSettings?.githubRepo?.ifEmpty { "fit-track" } ?: "fit-track"
-
-            val result = GitHubUpdateChecker.checkLatestRelease(owner, repo)
-            result.onSuccess { info ->
-                if (info.isNewer) {
-                    _updateCheckState.value = UpdateCheckState.Available(info)
-                    // If it's an auto-check and user already dismissed this specific version, don't interrupt
-                    if (!isAutoCheck || currentSettings?.lastDismissedUpdateVersion != info.versionName) {
-                        _activeUpdatePrompt.value = info
-                    }
-                } else {
-                    _updateCheckState.value = UpdateCheckState.UpToDate(info.currentVersionName)
-                }
-            }.onFailure { error ->
-                _updateCheckState.value = UpdateCheckState.Error(
-                    error.message ?: "Failed to connect to GitHub. Check repository name or internet."
-                )
-            }
-        }
-    }
-
-    fun dismissUpdatePrompt(remindLater: Boolean = false) {
-        val currentPrompt = _activeUpdatePrompt.value
-        _activeUpdatePrompt.value = null
-        if (remindLater && currentPrompt != null) {
-            settings.value?.let { currentSettings ->
-                updateSettings(currentSettings.copy(lastDismissedUpdateVersion = currentPrompt.versionName))
-            }
-        }
-    }
-
-    fun showUpdateDialog(info: AppUpdateInfo) {
-        _activeUpdatePrompt.value = info
-    }
-
-    fun simulateTestUpdate() {
-        val mockInfo = GitHubUpdateChecker.createMockUpdateInfo()
-        _updateCheckState.value = UpdateCheckState.Available(mockInfo)
-        _activeUpdatePrompt.value = mockInfo
-    }
-
-    fun saveGitHubRepoConfig(owner: String, repo: String, autoCheck: Boolean) {
-        settings.value?.let { currentSettings ->
-            updateSettings(
-                currentSettings.copy(
-                    githubOwner = owner.trim(),
-                    githubRepo = repo.trim(),
-                    autoCheckUpdates = autoCheck
-                )
-            )
         }
     }
 }

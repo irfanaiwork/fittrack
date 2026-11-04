@@ -46,8 +46,6 @@ import com.example.ui.calendar.CalendarScreen
 import com.example.ui.components.IncomingCallAlarmDialog
 import com.example.ui.components.OnboardingFlow
 import com.example.ui.components.ReminderDialog
-import com.example.ui.components.UpdateAvailableDialog
-import com.example.updates.GitHubUpdateChecker
 import com.example.ui.home.HomeScreen
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -143,8 +141,6 @@ fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
     val currentAlertPrompt = activeReminderPrompt ?: ringingPrompt
     val continuousRinging = settings?.alarmContinuousRinging ?: true
 
-    val activeUpdatePrompt by viewModel.activeUpdatePrompt.collectAsState()
-
     val isTrackingStarted = settings?.isTrackingStarted == true && settings?.onboardingCompleted == true
 
     // If tracking is not yet started, show the interactive Onboarding & Start Today flow
@@ -196,25 +192,6 @@ fun FitTrackAppRoot(viewModel: FitTrackViewModel) {
                 }
             )
         }
-    }
-
-    // In-App Update Prompt Dialog (Triggered from GitHub release detection or manual check)
-    activeUpdatePrompt?.let { updateInfo ->
-        UpdateAvailableDialog(
-            updateInfo = updateInfo,
-            onDownloadUpdate = {
-                GitHubUpdateChecker.openUpdateLink(context, updateInfo)
-            },
-            onViewOnGitHub = {
-                GitHubUpdateChecker.openReleasePage(context, updateInfo)
-            },
-            onDismiss = {
-                viewModel.dismissUpdatePrompt(remindLater = false)
-            },
-            onRemindLater = {
-                viewModel.dismissUpdatePrompt(remindLater = true)
-            }
-        )
     }
 
     // Handle system back gesture

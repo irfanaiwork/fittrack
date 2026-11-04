@@ -31,8 +31,6 @@ import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SystemUpdate
-import com.example.updates.UpdateCheckState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -90,7 +88,6 @@ fun HomeScreen(
     val todayCompletions by viewModel.todayCompletions.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val calorieSummary by viewModel.calorieSummary.collectAsState()
-    val updateState by viewModel.updateCheckState.collectAsState()
 
     val todayIso = remember { DateTimeUtils.getTodayIso() }
     val todayDayOfWeek = remember { DateTimeUtils.getCurrentDayOfWeek() }
@@ -154,73 +151,6 @@ fun HomeScreen(
                         fontWeight = FontWeight.Normal,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            // In-App GitHub Update Notification Banner
-            if (updateState is UpdateCheckState.Available) {
-                val updateInfo = (updateState as UpdateCheckState.Available).updateInfo
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.showUpdateDialog(updateInfo) }
-                            .testTag("home_update_banner"),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SystemUpdate,
-                                        contentDescription = null,
-                                        tint = androidx.compose.ui.graphics.Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Update Available: v${updateInfo.versionName} 🚀",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = "Tap to view changelog & update app",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = { viewModel.showUpdateDialog(updateInfo) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text("Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
                 }
             }
 
