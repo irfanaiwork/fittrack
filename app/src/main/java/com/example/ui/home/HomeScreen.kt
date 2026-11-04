@@ -408,7 +408,7 @@ fun HomeScreen(
                 )
             }
 
-            // Footer Credit: Irfan Gulzar
+            // App Footer
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 AppCreditFooter()

@@ -841,7 +841,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 7: About App & Irfan Gulzar Footer
+        // Section 7: App Footer
         item {
             AppCreditFooter()
         }
