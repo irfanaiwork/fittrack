@@ -1,7 +1,7 @@
 # Privacy Policy — FitTrack Daily
 
 **Effective date:** November 4, 2026
-**App:** FitTrack Daily (package: com.aistudio.fittrackdaily.kpmvlr)
+**App:** FitTrack Daily (package: com.irfangulzar.fittrack)
 **Developer:** Irfan Gulzar
 **Contact:** irfan.aiwork@gmail.com
 
